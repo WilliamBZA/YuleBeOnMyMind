@@ -426,3 +426,21 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# ---- Yule Be On My Mind: firmware ----
+# PlatformIO build output and downloaded libraries
+.pio/
+# Deployment secrets (copy firmware/include/secrets.example.h to secrets.h)
+firmware/include/secrets.h
+# Generated at build time from firmware/web/index.html by scripts/embed_web.py
+firmware/include/generated/
+# Signed release output of scripts/sign_firmware.py
+firmware/dist/
+# Release signing keys must never be committed
+*.pem
+*.key
+
+# ---- Yule Be On My Mind: broker and server deployment ----
+broker/.env
+broker/server.env
+broker/certs/

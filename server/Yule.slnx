@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Yule.Server/Yule.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Yule.Server.IntegrationTests/Yule.Server.IntegrationTests.csproj" />
+    <Project Path="tests/Yule.Server.Tests/Yule.Server.Tests.csproj" />
+  </Folder>
+</Solution>

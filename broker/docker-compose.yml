@@ -1,0 +1,67 @@
+# Mosquitto (with dynamic security) and the Yule server.
+#
+#   cp .env.example .env                  # public MQTT port, certificate directory
+#   cp server.env.example server.env      # server configuration and secrets
+#   docker compose up -d
+#
+# See README.md for the one-time dynamic-security bootstrap and certificate setup.
+name: yule
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    # The config and certificates are mounted outside /mosquitto so that the image's start-up chown of
+    # /mosquitto does not trip over read-only mounts.
+    command: ["mosquitto", "-c", "/etc/yule/mosquitto.conf"]
+    volumes:
+      - ./mosquitto.conf:/etc/yule/mosquitto.conf:ro
+      # Persistence, and the dynamic-security state (dynamic-security.json). Back this volume up.
+      - mosquitto-data:/mosquitto/data
+      # fullchain.pem and privkey.pem for the broker's public name (for example copied from Let's Encrypt).
+      - ${CERT_DIR:-./certs}:/etc/yule/certs:ro
+    ports:
+      # The public TLS listener, on a non-standard host port. Plain listener 1883 is deliberately NOT published:
+      # only containers on the internal network (the Yule server) can reach it.
+      - "${MQTT_TLS_PORT:-18883}:8883"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal
+
+  yule-server:
+    build:
+      context: ../server
+    image: yule-server:local
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    env_file:
+      - server.env
+    environment:
+      # Fixed by this compose file: the server reaches the broker over the internal listener.
+      Yule__Broker__Host: mosquitto
+      Yule__Broker__Port: "1883"
+      Yule__DataDirectory: /data
+      # The only way in is the host's reverse proxy, through the loopback-only port below, so the proxy's
+      # X-Forwarded-For and X-Forwarded-Proto headers (the client's address, https) can be believed. Do not set
+      # this where the server's port can be reached directly.
+      Yule__TrustForwardedHeaders: "true"
+    volumes:
+      # SQLite database and the Data Protection key ring. Back this volume up.
+      - yule-data:/data
+    ports:
+      # For the host's reverse proxy (which terminates TLS, for example at yule.williamb.net). Loopback only.
+      - "127.0.0.1:${SERVER_HTTP_PORT:-8080}:8080"
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  mosquitto-data:
+  yule-data:

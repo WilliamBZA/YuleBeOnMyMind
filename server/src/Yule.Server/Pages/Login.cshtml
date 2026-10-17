@@ -1,0 +1,20 @@
+@page "/login"
+@model LoginModel
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<div class="login card">
+    <h1>Log in</h1>
+    @if (Model.ErrorMessage is not null)
+    {
+        <p class="banner error" role="alert">@Model.ErrorMessage</p>
+    }
+    <form method="post" class="stack">
+        <label>
+            Administrator password
+            <input type="password" asp-for="Password" autocomplete="current-password" autofocus />
+        </label>
+        <button type="submit">Log in</button>
+    </form>
+</div>

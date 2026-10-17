@@ -1,0 +1,24 @@
+@page "/devices/{id}/remove"
+@model RemoveModel
+@{
+    ViewData["Title"] = "Remove " + Model.Device.Label;
+}
+
+<h1>Remove @Model.Device.Label?</h1>
+<p class="lead"><span class="id">@Model.Device.Id</span></p>
+
+<div class="card">
+    <p>
+        The device's broker account is deleted straight away. If it is connected now it is disconnected, and its next
+        attempt to connect is refused. It stops receiving presses and can no longer send them.
+    </p>
+    @if (Model.Device.Groups.Count > 0)
+    {
+        <p>It will leave @Display.Plural(Model.Device.Groups.Count, "group"): @string.Join(", ", Model.Device.Groups.Select(g => g.Name)).</p>
+    }
+    <p>To use it again later it has to be registered again, with a new password, and added back to its groups.</p>
+    <form method="post" class="inline">
+        <button type="submit" class="danger">Remove device</button>
+        <a class="button secondary" asp-page="/Devices/Edit" asp-route-id="@Model.Device.Id">Cancel</a>
+    </form>
+</div>

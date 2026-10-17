@@ -1,0 +1,90 @@
+@page "/devices"
+@model IndexModel
+@{
+    ViewData["Title"] = "Devices";
+}
+
+<h1>Devices</h1>
+
+@if (Model.Registered is { Password: not null } registered)
+{
+    <section class="card secret" aria-labelledby="secret-title">
+        <h2 id="secret-title">Registered: @Model.RegisteredLabel</h2>
+        <p>
+            Type this broker password into the device's settings page, under <strong>Device setup</strong>.
+            <strong>It is shown only this once</strong> and cannot be looked up later. If it is lost, remove the device and register it again.
+        </p>
+        <code id="broker-password">@registered.Password</code>
+        <p class="id">Device id @registered.DeviceId</p>
+        @if (registered.Change.Broker.Problem is { } problem)
+        {
+            <p class="banner warning" role="alert">@problem</p>
+        }
+    </section>
+}
+
+<h2>Registered devices</h2>
+@if (Model.Devices.Count == 0)
+{
+    <p class="empty">No devices yet. Register one below using the id shown on its settings page.</p>
+}
+else
+{
+    <p class="summary">@Display.Plural(Model.Devices.Count, "device")</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th scope="col">Device</th><th scope="col">Groups</th><th scope="col">Channel</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>
+            @foreach (var device in Model.Devices)
+            {
+                <tr>
+                    <td>
+                        <a asp-page="/Devices/Edit" asp-route-id="@device.Id">@device.Label</a><br />
+                        <span class="id">@device.Id</span>
+                    </td>
+                    <td>
+                        @if (device.Groups.Count == 0)
+                        {
+                            <span class="empty">none</span>
+                        }
+                        else
+                        {
+                            <ul class="chips">
+                                @foreach (var group in device.Groups)
+                                {
+                                    <li><a asp-page="/Groups/Details" asp-route-id="@group.Id">@group.Name</a></li>
+                                }
+                            </ul>
+                        }
+                    </td>
+                    <td>@device.Channel</td>
+                    <td><partial name="_DeviceState" model="new DeviceStateModel(device.Status, Model.NowUtc)" /></td>
+                    <td class="actions">
+                        <a asp-page="/Devices/Edit" asp-route-id="@device.Id">Edit</a> ·
+                        <a asp-page="/Devices/Remove" asp-route-id="@device.Id">Remove</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h2>Register a device</h2>
+<form method="post" class="stack card">
+    <label>
+        Device id
+        <span class="hint">From the device's settings page, or its serial log at start-up.</span>
+        <input type="text" asp-for="Input.Id" placeholder="d-3c71bf4a2b10" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <span asp-validation-for="Input.Id" class="field-error"></span>
+    </label>
+    <label>
+        Label
+        <span class="hint">Who or where it is, for example "Gran (Brander)".</span>
+        <input type="text" asp-for="Input.Label" maxlength="60" autocomplete="off" />
+        <span asp-validation-for="Input.Label" class="field-error"></span>
+    </label>
+    <button type="submit">Register device</button>
+</form>

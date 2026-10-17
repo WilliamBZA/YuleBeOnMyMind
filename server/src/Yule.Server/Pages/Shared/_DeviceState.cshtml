@@ -1,0 +1,11 @@
+@model DeviceStateModel
+@if (Model.Status is null)
+{
+    <span class="badge warn">never seen</span>
+}
+else
+{
+    var online = Model.Status.State == "online";
+    <span class="badge @(online ? "online" : "offline")">@(online ? "online" : "offline")</span>
+    <span class="id">@Display.Ago(DateTime.SpecifyKind(Model.Status.LastSeenUtc, DateTimeKind.Utc), Model.NowUtc)</span>
+}

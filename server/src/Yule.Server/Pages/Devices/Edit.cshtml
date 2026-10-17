@@ -1,0 +1,53 @@
+@page "/devices/{id}"
+@model EditModel
+@{
+    ViewData["Title"] = Model.Device.Label;
+}
+
+<h1>@Model.Device.Label</h1>
+<p class="lead"><span class="id">@Model.Device.Id</span> · <partial name="_DeviceState" model="new DeviceStateModel(Model.Device.Status, Model.NowUtc)" /></p>
+
+<form method="post" class="stack card">
+    <label>
+        Label
+        <input type="text" asp-for="Label" maxlength="60" autocomplete="off" />
+        <span asp-validation-for="Label" class="field-error"></span>
+    </label>
+    <label>
+        Update channel
+        <span class="hint">Devices on beta receive new firmware first. Everything else stays on stable.</span>
+        <select asp-for="Channel">
+            <option value="stable">stable</option>
+            <option value="beta">beta</option>
+        </select>
+        <span asp-validation-for="Channel" class="field-error"></span>
+    </label>
+    <button type="submit">Save</button>
+</form>
+
+@if (Model.Device.Status is { } status)
+{
+    <h2>Last report</h2>
+    <p>
+        Firmware @(status.FirmwareVersion ?? "unknown") on @(status.Board ?? "unknown board"),
+        last update result: @(status.OtaResult ?? "none"),
+        last seen @Display.Utc(DateTime.SpecifyKind(status.LastSeenUtc, DateTimeKind.Utc)).
+    </p>
+}
+
+<h2>Groups</h2>
+@if (Model.Device.Groups.Count == 0)
+{
+    <p class="empty">Not in any group yet. Add it from a group's page.</p>
+}
+else
+{
+    <ul class="chips">
+        @foreach (var group in Model.Device.Groups)
+        {
+            <li><a asp-page="/Groups/Details" asp-route-id="@group.Id">@group.Name</a></li>
+        }
+    </ul>
+}
+
+<p><a asp-page="/Devices/Index">Back to devices</a> · <a asp-page="/Devices/Remove" asp-route-id="@Model.Device.Id">Remove this device</a></p>

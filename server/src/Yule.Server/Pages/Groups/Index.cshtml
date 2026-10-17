@@ -1,0 +1,55 @@
+@page "/groups"
+@model IndexModel
+@{
+    ViewData["Title"] = "Groups";
+}
+
+<h1>Groups</h1>
+<p class="lead">A press reaches every device in every group the presser's device is in, and nobody else.</p>
+
+@if (Model.Groups.Count == 0)
+{
+    <p class="empty">No groups yet. Create the first one below.</p>
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th scope="col">Group</th><th scope="col">Members</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var group in Model.Groups)
+            {
+                <tr>
+                    <td>
+                        <a asp-page="/Groups/Details" asp-route-id="@group.Id">@group.Name</a><br />
+                        <span class="id">@group.Id</span>
+                    </td>
+                    <td>
+                        @if (group.Members.Count == 0)
+                        {
+                            <span class="empty">no members</span>
+                        }
+                        else
+                        {
+                            @string.Join(", ", group.Members.Select(m => m.Label))
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h2>Create a group</h2>
+<form method="post" class="stack card">
+    <label>
+        Name
+        <span class="hint">Names need not be unique; each group has its own id.</span>
+        <input type="text" asp-for="Name" maxlength="40" autocomplete="off" />
+        <span asp-validation-for="Name" class="field-error"></span>
+    </label>
+    <button type="submit">Create group</button>
+</form>

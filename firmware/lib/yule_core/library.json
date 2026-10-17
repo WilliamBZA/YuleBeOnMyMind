@@ -1,0 +1,10 @@
+{
+  "name": "yule_core",
+  "version": "0.1.0",
+  "description": "Hardware-independent logic for the Yule decoration firmware: parsing, rendering, codecs and state machines. No Arduino headers.",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": [
+    { "name": "ArduinoJson", "version": "7.4.2" }
+  ]
+}

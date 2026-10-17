@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@ViewData["Title"] · Yule Be On My Mind</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    <header class="top">
+        <a class="brand" href="/">Yule Be On My Mind</a>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <nav aria-label="Main">
+                <a asp-page="/Devices/Index" class="@(IsSection("/Devices") ? "current" : null)">Devices</a>
+                <a asp-page="/Groups/Index" class="@(IsSection("/Groups") ? "current" : null)">Groups</a>
+                <a asp-page="/Status" class="@(IsSection("/Status") ? "current" : null)">Status</a>
+            </nav>
+            <form method="post" asp-page="/Logout" class="logout">
+                <button type="submit" class="link">Log out</button>
+            </form>
+        }
+    </header>
+    <main>
+        @if (TempData["Notice"] is string notice)
+        {
+            <p class="banner notice" role="status">@notice</p>
+        }
+        @if (TempData["Warning"] is string warning)
+        {
+            <p class="banner warning" role="alert">@warning</p>
+        }
+        @RenderBody()
+    </main>
+</body>
+</html>
+@functions {
+    private bool IsSection(string folder) =>
+        (ViewContext.RouteData.Values["page"] as string ?? "").StartsWith(folder, StringComparison.Ordinal);
+}

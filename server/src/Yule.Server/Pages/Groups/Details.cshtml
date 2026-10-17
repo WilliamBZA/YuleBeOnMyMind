@@ -1,0 +1,75 @@
+@page "/groups/{id}"
+@model DetailsModel
+@{
+    ViewData["Title"] = Model.Group.Name;
+}
+
+<h1>@Model.Group.Name</h1>
+<p class="lead"><span class="id">@Model.Group.Id</span> · @Display.Plural(Model.Group.Members.Count, "member")</p>
+
+<h2>Members</h2>
+@if (Model.Group.Members.Count == 0)
+{
+    <p class="empty">No members yet. Presses sent to this group reach nobody.</p>
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th scope="col">Device</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>
+            @foreach (var member in Model.Group.Members)
+            {
+                <tr>
+                    <td>
+                        <a asp-page="/Devices/Edit" asp-route-id="@member.Id">@member.Label</a><br />
+                        <span class="id">@member.Id</span>
+                    </td>
+                    <td class="actions">
+                        <form method="post" asp-page-handler="RemoveMember" asp-route-id="@Model.Group.Id" class="inline">
+                            <input type="hidden" name="DeviceId" value="@member.Id" />
+                            <button type="submit" class="danger">Remove from group</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h2>Add a member</h2>
+@if (Model.Candidates.Count == 0)
+{
+    <p class="empty">Every registered device is already in this group. <a asp-page="/Devices/Index">Register another device</a>.</p>
+}
+else
+{
+    <form method="post" asp-page-handler="AddMember" asp-route-id="@Model.Group.Id" class="card inline">
+        <label>
+            Device
+            <select name="DeviceId">
+                @foreach (var candidate in Model.Candidates)
+                {
+                    <option value="@candidate.Id">@candidate.Label (@candidate.Id)</option>
+                }
+            </select>
+            <span asp-validation-for="DeviceId" class="field-error"></span>
+        </label>
+        <button type="submit">Add to group</button>
+    </form>
+}
+
+<h2>Rename</h2>
+<form method="post" asp-page-handler="Rename" asp-route-id="@Model.Group.Id" class="card inline">
+    <label>
+        Name
+        <input type="text" asp-for="Name" maxlength="40" autocomplete="off" />
+        <span asp-validation-for="Name" class="field-error"></span>
+    </label>
+    <button type="submit">Rename</button>
+</form>
+
+<p><a asp-page="/Groups/Index">Back to groups</a> · <a asp-page="/Groups/Remove" asp-route-id="@Model.Group.Id">Delete this group</a></p>

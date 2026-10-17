@@ -1,0 +1,60 @@
+@page "/status"
+@model StatusModel
+@{
+    ViewData["Title"] = "Status";
+}
+@section Head {
+    <meta http-equiv="refresh" content="30" />
+}
+
+<h1>Status</h1>
+<p class="lead">What each device last reported. This page refreshes itself every 30 seconds.</p>
+
+@if (Model.Devices.Count == 0)
+{
+    <p class="empty">No devices are registered yet.</p>
+}
+else
+{
+    <p class="summary">@Model.Online of @Display.Plural(Model.Devices.Count, "device") online</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">State</th>
+                    <th scope="col">Firmware</th>
+                    <th scope="col">Board</th>
+                    <th scope="col">Last update result</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var device in Model.Devices)
+            {
+                var status = device.Status;
+                <tr>
+                    <td>
+                        <a asp-page="/Devices/Edit" asp-route-id="@device.Id">@device.Label</a><br />
+                        <span class="id">@device.Id · @device.Channel</span>
+                    </td>
+                    <td><partial name="_DeviceState" model="new DeviceStateModel(status, Model.NowUtc)" /></td>
+                    <td>@(status?.FirmwareVersion ?? "–")</td>
+                    <td>@(status?.Board ?? "–")</td>
+                    <td>
+                        @if (status?.OtaResult is { } ota)
+                        {
+                            <span class="@(ota.StartsWith("failed", StringComparison.Ordinal) || ota.StartsWith("rolled-back", StringComparison.Ordinal) ? "badge bad" : null)">@ota</span>
+                        }
+                        else
+                        {
+                            <text>–</text>
+                        }
+                    </td>
+                    <td>@(status is null ? "never" : Display.Utc(DateTime.SpecifyKind(status.LastSeenUtc, DateTimeKind.Utc)))</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
