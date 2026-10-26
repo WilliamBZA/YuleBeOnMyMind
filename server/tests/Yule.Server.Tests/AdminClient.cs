@@ -43,6 +43,22 @@ public sealed class AdminClient(HttpClient http)
         return Http.PostAsync(path, new FormUrlEncodedContent(all.Select(f => KeyValuePair.Create(f.Name, f.Value))));
     }
 
+    /// <summary>Posts a file-upload form (multipart) the way a browser would, with the token from <paramref name="formPage"/>.</summary>
+    public async Task<HttpResponseMessage> PostFilesAsync(string path, string formPage, params (string Field, string FileName, byte[] Content)[] files)
+    {
+        var token = await TokenFromAsync(formPage);
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(token), "__RequestVerificationToken");
+        foreach (var (field, fileName, content) in files)
+        {
+            var part = new ByteArrayContent(content);
+            part.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            form.Add(part, field, fileName);
+        }
+
+        return await Http.PostAsync(path, form);
+    }
+
     public async Task<HttpResponseMessage> TryLoginAsync(string password, string? returnUrl = null)
     {
         var page = returnUrl is null ? "/login" : "/login?ReturnUrl=" + Uri.EscapeDataString(returnUrl);

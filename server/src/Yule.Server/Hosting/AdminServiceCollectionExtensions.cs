@@ -35,7 +35,7 @@ public static class AdminServiceCollectionExtensions
         });
 
         // Everything requires the administrator unless it opts out with [AllowAnonymous] (the login page, the error
-        // page, /healthz and, later, /firmware/*). A page added without thinking about it is therefore protected.
+        // page, /healthz and /firmware/*). A page added without thinking about it is therefore protected.
         services.AddAuthorization(options =>
             options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
@@ -57,6 +57,7 @@ public static class AdminServiceCollectionExtensions
         services.AddScoped<BrokerChangeApplier>();
         services.AddScoped<DeviceAdminService>();
         services.AddScoped<GroupAdminService>();
+        services.AddScoped<ReleaseAdminService>();
         return services;
     }
 }

@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "version": "0.0.1",
+  "board": "esp32dev",
+  "size": 4096,
+  "sha256": "e4a51712a61e4ac25ad34c46740e4b5ebe7cba9241ffe8e68cdbdf7bf8ede76c",
+  "sig": "MEYCIQCb6OMIRPArqMEOwa0jPjEZtLV7DNvWhAaDQQGnKTPQowIhAPb590LsAf9NrfMe1zRttnj9gYYhsQ1qE2e7kunhkeMC"
+}

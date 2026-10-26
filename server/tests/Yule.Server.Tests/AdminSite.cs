@@ -8,9 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Yule.Server.Admin;
 using Yule.Server.Broker;
+using Yule.Server.Configuration;
 using Yule.Server.Data;
+using Yule.Server.Releases;
 using Yule.Server.Security;
 
 namespace Yule.Server.Tests;
@@ -76,15 +79,52 @@ public sealed class RecordingSynchroniser : IBrokerSynchroniser
         Task.FromResult(new SyncResult(0, new HashSet<string>(), new HashSet<string>(), 0));
 }
 
+/// <summary>An <see cref="IReleasePublisher"/> that remembers each announcement, and can be told to fail like a broker that is down.</summary>
+public sealed class RecordingReleasePublisher : IReleasePublisher
+{
+    private readonly List<(string Channel, string Board, string Version, string FileName)> _published = [];
+
+    public IReadOnlyList<(string Channel, string Board, string Version, string FileName)> Published
+    {
+        get
+        {
+            lock (_published)
+            {
+                return _published.ToList();
+            }
+        }
+    }
+
+    public Func<CancellationToken, Task>? Behaviour { get; set; }
+
+    public async Task PublishAsync(FirmwareRelease release, string channel, CancellationToken cancellationToken)
+    {
+        if (Behaviour is not null)
+        {
+            await Behaviour(cancellationToken);
+        }
+
+        lock (_published)
+        {
+            _published.Add((channel, release.Board, release.Version, release.FileName));
+        }
+    }
+}
+
 /// <summary>
 /// The real application (Program.cs, the real pages, authentication, database and migrations) with everything that
-/// talks to the broker replaced by a <see cref="RecordingSynchroniser"/>, so the pages can be tested without Docker.
+/// talks to the broker replaced by a <see cref="RecordingSynchroniser"/> and a <see cref="RecordingReleasePublisher"/>,
+/// so the pages can be tested without Docker.
 /// </summary>
 public sealed class AdminSite : WebApplicationFactory<Program>
 {
     // PBKDF2 at its real strength is deliberately slow; a low count keeps hundreds of logins in the tests quick.
     private static readonly string PasswordHash = AdminPasswordHasher.Hash(AdminSiteDefaults.Password, iterations: 2_000);
-    private static readonly string ReleasePublicKey = TestSupport.NewReleaseKey().PublicPem;
+    private static readonly (ECDsa Private, string PublicPem) ReleaseKeyPair = TestSupport.NewReleaseKey();
+    private static readonly string ReleasePublicKey = ReleaseKeyPair.PublicPem;
+
+    /// <summary>The private half of the release key the site is configured with, for signing test releases.</summary>
+    public static ECDsa ReleaseKey => ReleaseKeyPair.Private;
 
     private readonly string _dataDirectory = Path.Combine(Path.GetTempPath(), "yule-site-" + Guid.NewGuid().ToString("N"));
     private readonly bool _trustForwardedHeaders;
@@ -98,7 +138,11 @@ public sealed class AdminSite : WebApplicationFactory<Program>
 
     public RecordingSynchroniser Broker { get; } = new();
 
+    public RecordingReleasePublisher Releases { get; } = new();
+
     public ManualTimeProvider Time { get; } = new();
+
+    public string DataDirectory => _dataDirectory;
 
     /// <summary>A new browser with its own cookies. Requests go to https, as they do behind the reverse proxy.</summary>
     public AdminClient NewClient() => new(CreateClient(new WebApplicationFactoryClientOptions
@@ -191,6 +235,16 @@ public sealed class AdminSite : WebApplicationFactory<Program>
 
             services.RemoveAll<BrokerChangeApplier>();
             services.AddScoped(sp => new BrokerChangeApplier(Broker, sp.GetRequiredService<ILogger<BrokerChangeApplier>>()) { Timeout = _brokerTimeout });
+
+            services.RemoveAll<IReleasePublisher>();
+            services.AddSingleton<IReleasePublisher>(Releases);
+            services.RemoveAll<ReleaseAdminService>();
+            services.AddScoped(sp => new ReleaseAdminService(
+                sp.GetRequiredService<YuleDbContext>(),
+                Releases,
+                sp.GetRequiredService<IOptions<YuleOptions>>(),
+                sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<ILogger<ReleaseAdminService>>()) { PublishTimeout = _brokerTimeout });
         });
     }
 

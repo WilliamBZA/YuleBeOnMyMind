@@ -33,3 +33,10 @@ std::string TimeSync::localTimeString() const {
   strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", &local);
   return buf;
 }
+
+int TimeSync::localMinuteOfDay() const {
+  const time_t now = time(nullptr);
+  struct tm local;
+  localtime_r(&now, &local);
+  return local.tm_hour * 60 + local.tm_min;
+}

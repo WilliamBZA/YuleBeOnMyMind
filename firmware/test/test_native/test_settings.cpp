@@ -1,9 +1,13 @@
-// Tests for settings_model (6.2), settings_validation (6.3) and tz_table (6.4).
+// Tests for settings_model (6.2), settings_validation (6.3), tz_table (6.4) and settings_api (15.2).
 #include <unity.h>
+
+#include <ArduinoJson.h>
 
 #include <set>
 #include <string>
 
+#include "pattern.h"
+#include "settings_api.h"
 #include "settings_model.h"
 #include "settings_validation.h"
 #include "song_library.h"
@@ -408,7 +412,100 @@ static void test_time_zone_lookup() {
   TEST_ASSERT_EQUAL_STRING("UTC0", defaultTimeZone().rule);
 }
 
+// ---- 15.2 settings API bodies ----
+
+static JsonDocument parsed(const std::string& json) {
+  JsonDocument doc;
+  TEST_ASSERT_FALSE_MESSAGE(deserializeJson(doc, json), json.c_str());
+  return doc;
+}
+
+static void test_library_lists_every_song_effect_and_zone() {
+  const JsonDocument doc = parsed(encodeLibrary());
+  TEST_ASSERT_EQUAL_UINT32(carolCount(), doc["songs"].size());
+  TEST_ASSERT_EQUAL_STRING(defaultCarol().id, doc["songs"][0]["id"]);
+  TEST_ASSERT_EQUAL_STRING(defaultCarol().id, doc["defaultSong"]);
+  for (JsonVariantConst song : doc["songs"].as<JsonArrayConst>()) {
+    TEST_ASSERT_TRUE(song["ms"].as<uint32_t>() > 0);
+    TEST_ASSERT_TRUE(song["ms"].as<uint32_t>() <= 30000);
+    TEST_ASSERT_NOT_NULL(findCarol(song["id"].as<const char*>()));
+  }
+  TEST_ASSERT_EQUAL_UINT32(kEffectCount, doc["effects"].size());
+  TEST_ASSERT_EQUAL_STRING("candy-cane", doc["effects"][static_cast<size_t>(Effect::CandyCane)]["name"]);
+  TEST_ASSERT_EQUAL_INT(2, doc["effects"][static_cast<size_t>(Effect::CandyCane)]["colors"].as<int>());
+  TEST_ASSERT_EQUAL_INT(0, doc["effects"][static_cast<size_t>(Effect::Rainbow)]["colors"].as<int>());
+  TEST_ASSERT_EQUAL_UINT32(timeZoneCount(), doc["timeZones"].size());
+  TEST_ASSERT_EQUAL_INT(24, doc["limits"]["nameChars"].as<int>());
+  TEST_ASSERT_EQUAL_INT(512, doc["limits"]["songChars"].as<int>());
+}
+
+static void test_status_lists_the_device_id_and_group_names() {
+  StatusView s;
+  s.deviceId = "d-3c71bf4a2b10";
+  s.groupNames = {"Brander Grandparents", "Smith \"the elder\" Grandparents"};
+  s.channel = "beta";
+  s.setupRequired = false;
+  s.update.state = UpdateView::State::Downloading;
+  s.update.percent = 42;
+  s.update.version = "0.3.0";
+  const JsonDocument doc = parsed(encodeStatus(s));
+  TEST_ASSERT_EQUAL_STRING("d-3c71bf4a2b10", doc["id"]);
+  TEST_ASSERT_EQUAL_UINT32(2, doc["groups"].size());
+  TEST_ASSERT_EQUAL_STRING("Smith \"the elder\" Grandparents", doc["groups"][1]);
+  TEST_ASSERT_EQUAL_STRING("beta", doc["channel"]);
+  TEST_ASSERT_EQUAL_STRING("downloading", doc["update"]["state"]);
+  TEST_ASSERT_EQUAL_INT(42, doc["update"]["percent"].as<int>());
+  TEST_ASSERT_EQUAL_STRING("0.3.0", doc["update"]["version"]);
+}
+
+static void test_status_of_a_new_device() {
+  StatusView s;
+  s.deviceId = "d-000000000001";
+  s.setupRequired = true;
+  s.timeSynced = false;
+  s.localTime = "Thu 1970-01-01 00:00";
+  const JsonDocument doc = parsed(encodeStatus(s));
+  TEST_ASSERT_EQUAL_UINT32_MESSAGE(0, doc["groups"].size(), "not in any family group yet");
+  TEST_ASSERT_TRUE(doc["setupRequired"].as<bool>());
+  TEST_ASSERT_FALSE(doc["clock"]["synced"].as<bool>());
+  TEST_ASSERT_EQUAL_STRING_MESSAGE("", doc["clock"]["local"], "an unsynchronised time is not shown");
+  TEST_ASSERT_EQUAL_STRING("up-to-date", doc["update"]["state"]);
+  TEST_ASSERT_TRUE(doc["update"]["percent"].isNull());
+}
+
+static void test_update_state_names() {
+  TEST_ASSERT_EQUAL_STRING("installed", updateStateName(UpdateView::State::Installed));
+  TEST_ASSERT_EQUAL_STRING("failed", updateStateName(UpdateView::State::Failed));
+  TEST_ASSERT_EQUAL_STRING("rolled-back", updateStateName(UpdateView::State::RolledBack));
+  TEST_ASSERT_EQUAL_STRING("waiting", updateStateName(UpdateView::State::Waiting));
+}
+
+static void test_get_responses_never_contain_the_password() {
+  Ident ident;
+  ident.password = "Zq8pW3xLmN7rT2vY5bK9cH4s";
+  ident.brokerHost = "broker.example.org";
+  ident.brokerPort = 18883;
+  const DeviceUpdate saved = applyDeviceJson(Ident(), "{\"password\":\"Zq8pW3xLmN7rT2vY5bK9cH4s\"}");
+  TEST_ASSERT_TRUE(saved.applied());
+  StatusView s;
+  s.deviceId = "d-3c71bf4a2b10";
+  s.brokerHost = ident.brokerHost;
+  s.brokerPort = ident.brokerPort;
+  s.brokerOverrideHost = ident.brokerHost;
+  s.brokerOverridePort = ident.brokerPort;
+  for (const std::string& body : {encodeStatus(s), encodeProfile(defaultProfile()), encodeLibrary(),
+                                  encodeValidation(saved.validation)}) {
+    TEST_ASSERT_TRUE_MESSAGE(body.find(ident.password) == std::string::npos, body.c_str());
+    TEST_ASSERT_TRUE(body.find("password") == std::string::npos);
+  }
+}
+
 void run_settings_tests() {
+  RUN_TEST(test_library_lists_every_song_effect_and_zone);
+  RUN_TEST(test_status_lists_the_device_id_and_group_names);
+  RUN_TEST(test_status_of_a_new_device);
+  RUN_TEST(test_update_state_names);
+  RUN_TEST(test_get_responses_never_contain_the_password);
   RUN_TEST(test_default_profile);
   RUN_TEST(test_profile_round_trips);
   RUN_TEST(test_an_older_blob_gets_defaults_for_missing_fields);

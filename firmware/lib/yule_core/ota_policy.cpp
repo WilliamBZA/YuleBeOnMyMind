@@ -69,13 +69,19 @@ bool OtaState::isRolledBack(std::string_view version) const {
   return std::find(rolledBack.begin(), rolledBack.end(), version) != rolledBack.end();
 }
 
-void OtaState::markInstalled() {
+void OtaState::markInstalled(const std::string& version) {
   provisional = true;
   bootAttempts = 0;
+  installedVersion = version;
 }
 
 BootAction OtaState::onBoot(const std::string& runningVersion) {
   if (!provisional) return BootAction::Continue;
+  if (!installedVersion.empty() && installedVersion != runningVersion) {
+    const std::string abandoned = installedVersion;  // recordRollback clears installedVersion
+    recordRollback(abandoned);
+    return BootAction::Continue;
+  }
   if (bootAttempts < 255) ++bootAttempts;
   if (bootAttempts > limits::kMaxProvisionalBoots) {
     recordRollback(runningVersion);
@@ -87,6 +93,7 @@ BootAction OtaState::onBoot(const std::string& runningVersion) {
 void OtaState::markHealthy() {
   provisional = false;
   bootAttempts = 0;
+  installedVersion.clear();
   lastResult.kind = OtaResult::Kind::Ok;
   lastResult.detail.clear();
 }
@@ -94,6 +101,7 @@ void OtaState::markHealthy() {
 void OtaState::recordRollback(const std::string& version) {
   provisional = false;
   bootAttempts = 0;
+  installedVersion.clear();
   if (!isRolledBack(version)) rolledBack.push_back(version);
   while (rolledBack.size() > limits::kRolledBackListSize) rolledBack.erase(rolledBack.begin());
   lastResult.kind = OtaResult::Kind::RolledBack;
@@ -109,6 +117,7 @@ std::string OtaState::toJson() const {
   JsonDocument doc;
   doc["prov"] = provisional;
   doc["att"] = bootAttempts;
+  if (!installedVersion.empty()) doc["inst"] = installedVersion;
   JsonArray rb = doc["rb"].to<JsonArray>();
   for (const std::string& v : rolledBack) rb.add(v);
   doc["last"] = lastResult.toString();
@@ -128,6 +137,7 @@ OtaState OtaState::fromJson(std::string_view json) {
     const int a = root["att"].as<int>();
     s.bootAttempts = static_cast<uint8_t>(a < 0 ? 0 : (a > 255 ? 255 : a));
   }
+  if (root["inst"].is<const char*>()) s.installedVersion = root["inst"].as<const char*>();
   if (root["rb"].is<JsonArrayConst>()) {
     for (JsonVariantConst v : root["rb"].as<JsonArrayConst>()) {
       if (v.is<const char*>() && s.rolledBack.size() < limits::kRolledBackListSize) s.rolledBack.push_back(v.as<const char*>());

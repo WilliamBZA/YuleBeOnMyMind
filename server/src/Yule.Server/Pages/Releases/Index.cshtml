@@ -1,0 +1,115 @@
+@page "/releases"
+@model IndexModel
+@{
+    ViewData["Title"] = "Releases";
+}
+
+<h1>Releases</h1>
+<p class="lead">
+    A new release goes to the <strong>beta</strong> channel first. Once it has run well on the beta devices, promote it to
+    <strong>stable</strong>. Devices only ever install a newer version than they run, never one they rolled back from,
+    and only while idle.
+</p>
+
+<h2>Current releases</h2>
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th scope="col">Board</th><th scope="col">Beta</th><th scope="col">Stable</th></tr>
+        </thead>
+        <tbody>
+        @foreach (var board in Model.Current.GroupBy(c => c.Board))
+        {
+            <tr>
+                <td><span class="id">@board.Key</span></td>
+                @foreach (var channel in new[] { "beta", "stable" })
+                {
+                    var current = board.First(c => c.Channel == channel).Release;
+                    <td>@(current?.Version ?? "none")</td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<h2>Upload a release</h2>
+<form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="stack card">
+    @if (Model.UploadErrors.Count > 0)
+    {
+        <div class="banner error" role="alert">
+            <p>The release was not uploaded and nothing was published:</p>
+            <ul>
+                @foreach (var error in Model.UploadErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+    <label>
+        Signed image
+        <span class="hint">yule-&lt;version&gt;-&lt;board&gt;.bin, written by firmware/scripts/sign_firmware.py.</span>
+        <input type="file" name="Image" accept=".bin,application/octet-stream" />
+    </label>
+    <label>
+        Manifest
+        <span class="hint">The matching yule-&lt;version&gt;-&lt;board&gt;.manifest.json.</span>
+        <input type="file" name="Manifest" accept=".json,application/json" />
+    </label>
+    <button type="submit">Upload and publish to beta</button>
+</form>
+
+<h2>All releases</h2>
+@if (Model.Releases.Count == 0)
+{
+    <p class="empty">No releases yet. Build, sign and upload one as described in the README ("Releasing firmware").</p>
+}
+else
+{
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Version</th><th scope="col">Board</th><th scope="col">Size</th><th scope="col">SHA-256</th>
+                    <th scope="col">Uploaded</th><th scope="col">Channels</th><th scope="col"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var release in Model.Releases)
+            {
+                <tr>
+                    <td>@release.Version</td>
+                    <td><span class="id">@release.Board</span></td>
+                    <td>@($"{release.Size / 1024.0:N0} KB")</td>
+                    <td><span class="id" title="@release.Sha256">@release.Sha256[..12]…</span></td>
+                    <td>@Display.Utc(release.UploadedUtc)</td>
+                    <td>
+                        @if (release.CurrentBeta)
+                        {
+                            <span class="badge online">current beta</span>
+                        }
+                        @if (release.CurrentStable)
+                        {
+                            <span class="badge online">current stable</span>
+                        }
+                        else if (release.StablePublishedUtc is { } stable)
+                        {
+                            <span class="badge">was stable @Display.Utc(stable)</span>
+                        }
+                    </td>
+                    <td class="actions">
+                        @if (!release.CurrentStable)
+                        {
+                            <form method="post" asp-page-handler="Promote" asp-route-id="@release.Id" class="inline">
+                                <button type="submit" class="secondary">Promote to stable</button>
+                            </form>
+                        }
+                        <a href="/firmware/@release.FileName">Download</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

@@ -73,6 +73,60 @@ public sealed class BrokerSyncService(
     }
 }
 
+/// <summary>
+/// Publishes the current firmware release of every board and channel once the broker is reachable, and again after
+/// every reconnection: the broker may have restarted without its retained messages, and an announcement a page
+/// could not make at the time is delivered here.
+/// </summary>
+public sealed class ReleaseAnnouncementService(
+    IBrokerConnection connection,
+    IServiceScopeFactory scopes,
+    ILogger<ReleaseAnnouncementService> logger) : BackgroundService
+{
+    public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(30);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var reconnected = new SemaphoreSlim(0);
+        connection.Connected += () => reconnected.Release();
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await connection.WaitUntilConnectedAsync(stoppingToken);
+                await using (var scope = scopes.CreateAsyncScope())
+                {
+                    var count = await scope.ServiceProvider.GetRequiredService<Admin.ReleaseAdminService>().RepublishCurrentAsync(stoppingToken);
+                    logger.LogInformation("Announced {Count} current firmware release(s)", count);
+                }
+
+                await reconnected.WaitAsync(stoppingToken);
+                while (reconnected.CurrentCount > 0)
+                {
+                    reconnected.Wait(0);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Announcing the current firmware releases failed; trying again in {Delay:0.#} s", RetryDelay.TotalSeconds);
+                try
+                {
+                    await Task.Delay(RetryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+        }
+    }
+}
+
 public static class BrokerServiceCollectionExtensions
 {
     /// <summary>Registers the broker link, the dynamic-security client, the synchroniser and the background services that run them.</summary>
@@ -84,9 +138,11 @@ public static class BrokerServiceCollectionExtensions
         services.AddSingleton<IBrokerConnection>(sp => sp.GetRequiredService<BrokerConnection>());
         services.AddSingleton<DynsecClient>();
         services.AddSingleton<IBrokerSynchroniser, BrokerSynchroniser>();
+        services.AddSingleton<Releases.IReleasePublisher, Releases.BrokerReleasePublisher>();
         services.AddHostedService<BrokerConnectionService>();
         services.AddHostedService<BrokerSyncService>();
         services.AddHostedService<StatusListener>();
+        services.AddHostedService<ReleaseAnnouncementService>();
         return services;
     }
 }

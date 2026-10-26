@@ -51,7 +51,7 @@ public class AdminLoginTests
     }
 
     [Fact]
-    public void Only_the_login_page_the_error_page_and_healthz_are_open_to_anyone()
+    public void Only_the_login_page_the_error_page_healthz_and_firmware_downloads_are_open_to_anyone()
     {
         using var site = new AdminSite();
         _ = site.Server; // starts the host
@@ -62,8 +62,8 @@ public class AdminLoginTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
-        // Adding to this list is a decision about exposing a page without a login; /firmware/* joins it with the Releases page.
-        Assert.Equal(["/Error", "/Login", "HTTP: GET /healthz"], open);
+        // Adding to this list is a decision about exposing a page without a login. Devices download firmware without one.
+        Assert.Equal(["/Error", "/Login", "HTTP: GET /firmware/{file}", "HTTP: GET /healthz"], open);
     }
 
     [Fact]

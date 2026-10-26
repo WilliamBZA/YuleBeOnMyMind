@@ -56,16 +56,19 @@ enum class BootAction { Continue, Revert };
 struct OtaState {
   bool provisional = false;               // running a freshly installed image that has not proved itself
   uint8_t bootAttempts = 0;               // boots of the provisional image so far
+  std::string installedVersion;           // the version the provisional image should be (empty if unknown)
   std::vector<std::string> rolledBack;    // versions we rolled back from, oldest first, at most 4
   OtaResult lastResult;
 
   bool isRolledBack(std::string_view version) const;
 
   // The installer calls this just before rebooting into the new image.
-  void markInstalled();
+  void markInstalled(const std::string& version = "");
 
   // Called once, early, on every boot. While provisional it counts the boot; after 3 unhealthy boots the
   // image is recorded as rolled back and Revert is returned: switch to the previous slot and reboot.
+  // If a different version than the one installed is running, the new image never got this far (the
+  // bootloader went back to the previous one): it is recorded as rolled back and the boot continues.
   BootAction onBoot(const std::string& runningVersion);
 
   // The provisional image has proved itself.

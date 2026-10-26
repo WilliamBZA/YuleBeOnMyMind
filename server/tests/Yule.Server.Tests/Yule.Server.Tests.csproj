@@ -23,4 +23,9 @@
     <ProjectReference Include="..\..\src\Yule.Server\Yule.Server.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Files made by firmware/scripts/sign_firmware.py (see Fixtures/signed-release/README.md). -->
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -16,6 +16,7 @@
             <nav aria-label="Main">
                 <a asp-page="/Devices/Index" class="@(IsSection("/Devices") ? "current" : null)">Devices</a>
                 <a asp-page="/Groups/Index" class="@(IsSection("/Groups") ? "current" : null)">Groups</a>
+                <a asp-page="/Releases/Index" class="@(IsSection("/Releases") ? "current" : null)">Releases</a>
                 <a asp-page="/Status" class="@(IsSection("/Status") ? "current" : null)">Status</a>
             </nav>
             <form method="post" asp-page="/Logout" class="logout">

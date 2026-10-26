@@ -227,8 +227,8 @@
 
 ## 16. Firmware updates end to end (`firmware-updates`)
 
-- [ ] 16.1 Add `scripts/sign_firmware.py` as a post-build step: it reads the version and board, hashes the image (SHA-256), signs it with ECDSA P-256 using a key from an environment variable, and writes `yule-<version>-<board>.bin` plus `.manifest.json`. Document key-pair generation with `openssl`. Verify that the script's output passes the server verifier's unit test fixture, and that a one-byte-modified image fails it.
-- [ ] 16.2 Implement the server's Releases page and `/firmware/{file}`:
+- [x] 16.1 Add `scripts/sign_firmware.py` as a post-build step: it reads the version and board, hashes the image (SHA-256), signs it with ECDSA P-256 using a key from an environment variable, and writes `yule-<version>-<board>.bin` plus `.manifest.json`. Document key-pair generation with `openssl`. Verify that the script's output passes the server verifier's unit test fixture, and that a one-byte-modified image fails it.
+- [x] 16.2 Implement the server's Releases page and `/firmware/{file}`:
   - upload a `.bin` and manifest
   - verify the board, size, digest and signature against the configured keys
   - store the file, then publish the retained `firmware/beta/<board>` manifest with a URL from the public base URL
@@ -250,7 +250,7 @@
 
 ## 17. End-to-end integration
 
-- [ ] 17.1 Verify that `pio test -e native` and `dotnet test` (unit and integration) pass, and that `pio run -e esp32dev -e esp32-c3 -e esp32-s3` builds all variants.
+- [x] 17.1 Verify that `pio test -e native` and `dotnet test` (unit and integration) pass, and that `pio run -e esp32dev -e esp32-c3 -e esp32-s3` builds all variants.
 - [ ] 17.2 Set up three physical devices plus the test device on the deployed stack: A in G1, B in G1 and G2, C in G2. Walk through every spec scenario that can only be checked on hardware, and record the results in the README test checklist:
   - A's press plays on B but not C
   - C's press plays on B but not A

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Yule.Server.Broker;
 using Yule.Server.Configuration;
 using Yule.Server.Hosting;
+using Yule.Server.Releases;
 
 // `hash-password` prints a hash for Yule__Admin__PasswordHash and exits; it needs no configuration.
 if (args is ["hash-password", ..])
@@ -40,7 +41,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Static files (the stylesheet) come first so they can be cached. Everything after them is a page that holds device
-// and group data or a one-time password, so it is never cached, framed or loaded from anywhere but this server.
+// and group data or a one-time password, so it is never cached, framed or loaded from anywhere but this server. The
+// exception is a firmware image: its name is derived from its content, so it may be cached for good.
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -48,7 +50,9 @@ app.Use(async (context, next) =>
     context.Response.OnStarting(() =>
     {
         var headers = context.Response.Headers;
-        headers.CacheControl = "no-store";
+        headers.CacheControl = FirmwareDownloads.IsDownload(context.Request.Path) && context.Response.StatusCode == StatusCodes.Status200OK
+            ? "public, max-age=31536000, immutable"
+            : "no-store";
         headers.XContentTypeOptions = "nosniff";
         headers["X-Frame-Options"] = "DENY";
         headers["Referrer-Policy"] = "no-referrer";
@@ -63,6 +67,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/healthz", () => Results.Text("ok")).AllowAnonymous();
+app.MapFirmwareDownloads();
 app.MapRazorPages();
 
 await app.RunAsync();

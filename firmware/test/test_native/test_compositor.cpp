@@ -7,6 +7,7 @@
 #include "compositor.h"
 #include "cues.h"
 #include "effects.h"
+#include "status_indication.h"
 
 using namespace yule;
 
@@ -403,6 +404,60 @@ static void test_idle_is_everything_off() {
   TEST_ASSERT_EQUAL_INT(0, litCount(draw(c, 50, 60)));
 }
 
+// ---- 14.4 which indication shows ----
+
+static IndicationInputs neverConnected(uint32_t uptimeMs) {
+  IndicationInputs in;
+  in.uptimeMs = uptimeMs;
+  in.disconnectedForMs = uptimeMs;
+  return in;
+}
+
+static void test_indication_after_boot_is_connecting_then_lost() {
+  TEST_ASSERT_TRUE(chooseIndication(neverConnected(0)) == Indication::Connecting);
+  TEST_ASSERT_TRUE(chooseIndication(neverConnected(59999)) == Indication::Connecting);
+  TEST_ASSERT_TRUE_MESSAGE(chooseIndication(neverConnected(60001)) == Indication::ConnectionLost,
+                           "a broker that never answered counts as lost after 60 s");
+  TEST_ASSERT_EQUAL_STRING("connecting", indicationName(Indication::Connecting));
+}
+
+static void test_indication_when_connected_is_off() {
+  IndicationInputs in = neverConnected(5000);
+  in.brokerConnected = true;
+  in.everConnected = true;
+  in.disconnectedForMs = 0;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::None);
+  in.uptimeMs = 3600000;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::None);
+}
+
+static void test_indication_after_a_drop_waits_60_seconds() {
+  IndicationInputs in;
+  in.everConnected = true;
+  in.uptimeMs = 30000;  // still inside the first minute, but it has connected: no connecting pulse
+  in.disconnectedForMs = 1000;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::None);
+  in.uptimeMs = 600000;
+  in.disconnectedForMs = 60000;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::None);
+  in.disconnectedForMs = 60001;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::ConnectionLost);
+  in.brokerConnected = true;  // back again: off at once
+  in.disconnectedForMs = 0;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::None);
+}
+
+static void test_indication_setup_and_updating_outrank_the_broker() {
+  IndicationInputs in = neverConnected(120000);
+  in.portalOpen = true;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::Setup);
+  in.updating = true;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::Updating);
+  in.portalOpen = false;
+  in.brokerConnected = true;
+  TEST_ASSERT_TRUE(chooseIndication(in) == Indication::Updating);
+}
+
 void run_compositor_tests() {
   RUN_TEST(test_idle_compositor_is_dark);
   RUN_TEST(test_overlay_replacement_and_resumption);
@@ -427,4 +482,8 @@ void run_compositor_tests() {
   RUN_TEST(test_lost_connection_lights_exactly_one_dim_red_led);
   RUN_TEST(test_update_progress_fill_is_proportional);
   RUN_TEST(test_idle_is_everything_off);
+  RUN_TEST(test_indication_after_boot_is_connecting_then_lost);
+  RUN_TEST(test_indication_when_connected_is_off);
+  RUN_TEST(test_indication_after_a_drop_waits_60_seconds);
+  RUN_TEST(test_indication_setup_and_updating_outrank_the_broker);
 }

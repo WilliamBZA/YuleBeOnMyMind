@@ -1,12 +1,13 @@
 # Yule server
 
 The ASP.NET Core (.NET 10) service behind the decorations. It owns the list of **devices**, **family groups** and
-(later) **firmware releases**, and keeps the Mosquitto broker in step with them:
+**firmware releases**, and keeps the Mosquitto broker in step with them:
 
 - It creates each device's broker login and permissions when you register the device, and updates or removes
   them as you change groups. Changes reach the broker, and the devices, within seconds.
 - It publishes every device's retained `config` (its group names and update channel) and records each device's
   `status` (online, firmware version, last update result).
+- It verifies uploaded firmware releases, serves the images and announces each channel's current release.
 - It serves a small set of admin pages behind one administrator login.
 
 The database is the source of truth. The broker's permissions are a projection of it that the server rechecks at
@@ -19,9 +20,11 @@ passwords). If the server is down, devices keep exchanging presses; only admin c
 |---|---|---|
 | Devices | `/devices` | Register a device by its id and a label. Edit a label and update channel. Remove a device. |
 | Groups | `/groups` | Create, rename and delete groups. Add and remove member devices. |
+| Releases | `/releases` | Upload a signed firmware release (it goes to `beta`), promote it to `stable`, see the current release per board and channel. |
 | Status | `/status` | See each device's state, firmware version, board, last update result and last seen. Refreshes every 30 seconds. |
 
-Everything except `/login`, `/healthz` and the error page needs the administrator login. There is one
+Everything except `/login`, `/healthz`, `/firmware/*` (the images devices download) and the error page needs the
+administrator login. There is one
 administrator and no user accounts.
 
 **Registering a device.** Read the device's id (`d-` and 12 hex digits) from its settings page or its serial log,
@@ -33,6 +36,15 @@ lost, remove the device and register it again. The device can connect as soon as
 device to a group from the group's page; within about 10 seconds the device is told (nothing is done on it) and the
 broker lets it send to and hear from the group. Removing a device from a group, deleting a group, or removing a
 device takes effect the same way, and a removed device is disconnected immediately.
+
+**Releases.** Upload the `.bin` and `.manifest.json` that `firmware/scripts/sign_firmware.py` wrote. The server
+refuses the upload, and publishes nothing, unless the image is for the board named in the manifest (it checks the
+chip id in the image header), its size and SHA-256 match the manifest, and the signature verifies against one of
+the `Yule__ReleasePublicKeys`. A version can be uploaded once per board. The image is stored under a
+content-addressed name (`yule-0.3.0-esp32dev-1a2b3c4d5e6f.bin`), served at `/firmware/<name>`, and announced to the
+`beta` devices of that board as a retained message on `yule/v1/firmware/beta/<board>`. **Promote to stable** announces
+it on `yule/v1/firmware/stable/<board>`. Devices install only a newer version than they run, only while idle, and
+never one they rolled back from. The whole workflow is in the top-level `README.md` ("Releasing firmware").
 
 **If the broker is unreachable** when you save a change, the change is still saved and the page says the broker
 could not be updated just now. The server applies it as soon as it can reach the broker again (it checks every
@@ -205,8 +217,8 @@ The database migrates itself on start-up. The data volume is kept.
 
 ## Backups
 
-Everything the server needs to come back is in the `yule_yule-data` volume: the SQLite database and the Data
-Protection key ring in `keys/`. **Back up both together.** Broker passwords are stored encrypted with that key
+Everything the server needs to come back is in the `yule_yule-data` volume: the SQLite database, the firmware
+images in `firmware/` and the Data Protection key ring in `keys/`. **Back up both together.** Broker passwords are stored encrypted with that key
 ring; without it the passwords cannot be read, the server cannot rebuild device logins, and every device would need
 a new password. The commands for backing up the volumes are in `../broker/README.md` ("Backups").
 
@@ -221,6 +233,8 @@ reconciler brings the broker's accounts and permissions back in line with the re
 | The log repeats `Cannot connect to the broker` | The broker is not up, or `Yule__Broker__Username`/`Password` do not match the `yule-server` account. It keeps retrying with a back-off. |
 | `The broker rejected dynamic-security commands` or a timeout on `$CONTROL/dynamic-security` | The `yule-server` role is missing or incomplete (`../broker/README.md`, step 4), or the plugin is not loaded. |
 | A page says "The change is saved, but the broker could not be updated just now" | The broker could not be reached or did not answer within 15 seconds. The change is safe in the database and is applied by the next reconcile. |
+| The Releases page refuses an upload | It lists why. Usually the image and manifest are from different builds, the image was signed with a key the server is not configured with, or that version was already uploaded (bump `fw_version`). |
+| "The release is saved, but devices could not be told about it just now" | The broker was unreachable. The server announces every current release again whenever it reconnects to the broker. |
 | `Cannot decrypt the broker password of d-…` | The Data Protection key ring was lost or replaced. Restore the volume from a backup, or remove and re-register the affected devices. |
 | You cannot log in and have not got the password | Generate a new hash and replace `Yule__Admin__PasswordHash`. |
 | "Too many failed attempts" at the login page | Wait for the time it gives (at most 15 minutes), or restart the server, which forgets the count. |

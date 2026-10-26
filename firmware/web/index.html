@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yule Be On My Mind</title>
+<style>
+:root {
+  --bg: #f7f3ee; --card: #ffffff; --ink: #1f2a24; --muted: #5f6b64; --line: #ddd5ca;
+  --accent: #b3122e; --accent-ink: #ffffff; --green: #1d6b44; --warn-bg: #fff4d6; --warn-ink: #6b4b00;
+  --err: #b3122e; --ok-bg: #e4f3ea; --ok-ink: #1d6b44; --focus: #2a6fdb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121714; --card: #1b221e; --ink: #e9efe9; --muted: #a3b0a8; --line: #2e3933;
+    --accent: #e0455f; --accent-ink: #160a0c; --green: #6fd19b; --warn-bg: #3a3017; --warn-ink: #f3d68a;
+    --err: #ff7b8f; --ok-bg: #173325; --ok-ink: #8fe0b2; --focus: #7aa7ff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 20px 16px 8px; max-width: 720px; margin: 0 auto; }
+header h1 { margin: 0; font-size: 1.5rem; }
+header p { margin: 4px 0 0; color: var(--muted); }
+main { max-width: 720px; margin: 0 auto; padding: 0 16px 48px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 16px 0; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+code { font: 0.95em ui-monospace, SFMono-Regular, Consolas, monospace; }
+label { display: block; font-weight: 600; margin: 14px 0 4px; }
+.hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.9rem; }
+input[type=text], input[type=password], input[type=number], input[type=time], select, textarea {
+  width: 100%; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+textarea { min-height: 96px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.row > * { flex: 1 1 140px; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 14px 0 4px; }
+.check input { width: 20px; height: 20px; }
+.colors { display: flex; gap: 12px; flex-wrap: wrap; }
+.colors input[type=color] { width: 56px; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: none; padding: 2px; }
+.speeds { display: flex; gap: 16px; flex-wrap: wrap; }
+.speeds label { font-weight: 400; margin: 0; display: flex; gap: 6px; align-items: center; }
+input[type=range] { width: 100%; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 18px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+button.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.6; cursor: default; }
+.field-error { display: block; color: var(--err); font-size: 0.92rem; margin-top: 4px; }
+.field-warning { display: block; color: var(--warn-ink); background: var(--warn-bg); border-radius: 6px; padding: 4px 8px; font-size: 0.92rem; margin-top: 6px; }
+.banner { border-radius: 8px; padding: 10px 12px; margin: 12px 0 0; }
+.banner.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.banner.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.banner.err { background: var(--warn-bg); color: var(--err); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); margin: 0 4px 4px 0; }
+.good { color: var(--green); }
+.bad { color: var(--err); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Yule Be On My Mind</h1>
+  <p id="subtitle">Loading your decoration…</p>
+</header>
+<main>
+  <p class="banner err" id="load-error" hidden>Could not reach the decoration. Check that this phone or computer is on the same Wi-Fi network, then reload.</p>
+
+  <section aria-labelledby="status-title">
+    <h2 id="status-title">Status</h2>
+    <p class="banner warn" id="setup-required" hidden>Setup required: this decoration has no broker password yet, so it cannot send or receive. Enter it under <strong>Device setup</strong> below.</p>
+    <dl>
+      <dt>Device id</dt><dd><code id="st-id">…</code></dd>
+      <dt>Family groups</dt><dd id="st-groups">…</dd>
+      <dt>Wi-Fi</dt><dd id="st-wifi">…</dd>
+      <dt>Connection</dt><dd id="st-broker">…</dd>
+      <dt>Clock</dt><dd id="st-clock">…</dd>
+      <dt>Sound</dt><dd id="st-sound">…</dd>
+      <dt>Firmware</dt><dd id="st-fw">…</dd>
+      <dt>Updates</dt><dd id="st-update">…</dd>
+    </dl>
+  </section>
+
+  <form id="profile" novalidate>
+    <section aria-labelledby="me-title">
+      <h2 id="me-title">You</h2>
+      <label for="name">Display name
+        <span class="hint">Shown to your family with every press. 1 to 24 characters.</span></label>
+      <input type="text" id="name" maxlength="24" autocomplete="nickname" required>
+      <span class="field-error" data-for="name"></span>
+    </section>
+
+    <section aria-labelledby="song-title">
+      <h2 id="song-title">Your song</h2>
+      <label for="song">Song</label>
+      <select id="song"></select>
+      <div id="custom-box" hidden>
+        <label for="rtttl">Custom tune (RTTTL)
+          <span class="hint">Paste a ring-tone in RTTTL format, for example <code>Tune:d=8,o=5,b=120:c,e,g,4c6</code>. At most <span id="song-max">512</span> characters; only the first 30 seconds play.</span></label>
+        <textarea id="rtttl" maxlength="512" spellcheck="false" autocapitalize="off"></textarea>
+        <span class="hint" id="rtttl-count"></span>
+      </div>
+      <span class="field-error" data-for="song"></span>
+      <span class="field-warning" data-warn="song" hidden></span>
+    </section>
+
+    <section aria-labelledby="lights-title">
+      <h2 id="lights-title">Your lights</h2>
+      <label for="effect">Effect</label>
+      <select id="effect"></select>
+      <span class="hint" id="effect-roles"></span>
+      <span class="field-error" data-for="pattern.effect"></span>
+
+      <label for="color-count">Colours</label>
+      <div class="row">
+        <select id="color-count" aria-label="Number of colours">
+          <option value="1">1 colour</option><option value="2">2 colours</option><option value="3">3 colours</option>
+        </select>
+        <div class="colors">
+          <input type="color" id="color0" aria-label="Colour 1">
+          <input type="color" id="color1" aria-label="Colour 2">
+          <input type="color" id="color2" aria-label="Colour 3">
+        </div>
+      </div>
+      <span class="field-error" data-for="pattern.colors"></span>
+
+      <label>Speed</label>
+      <div class="speeds" role="radiogroup" aria-label="Speed">
+        <label><input type="radio" name="speed" value="1"> Slow</label>
+        <label><input type="radio" name="speed" value="2"> Medium</label>
+        <label><input type="radio" name="speed" value="3"> Fast</label>
+      </div>
+      <span class="field-error" data-for="pattern.speed"></span>
+
+      <label for="brightness">Brightness on this decoration: <span id="brightness-value"></span>%
+        <span class="hint">Only this decoration; your family's decorations use their own brightness.</span></label>
+      <input type="range" id="brightness" min="5" max="100" step="5">
+      <span class="field-error" data-for="brightness"></span>
+    </section>
+
+    <section aria-labelledby="dnd-title">
+      <h2 id="dnd-title">Do not disturb</h2>
+      <p class="hint">Mute and quiet hours silence the sound. Presses still show their lights.</p>
+      <label class="check"><input type="checkbox" id="muted"> Muted <span class="hint">(a long press of the button also toggles this)</span></label>
+      <span class="field-error" data-for="muted"></span>
+
+      <label class="check"><input type="checkbox" id="quiet-enabled"> Quiet hours every day</label>
+      <div class="row">
+        <div><label for="quiet-start">From</label><input type="time" id="quiet-start" step="60"></div>
+        <div><label for="quiet-end">Until</label><input type="time" id="quiet-end" step="60"></div>
+      </div>
+      <span class="field-error" data-for="quiet.start"></span>
+      <span class="field-error" data-for="quiet.end"></span>
+      <span class="field-error" data-for="quiet.enabled"></span>
+      <span class="field-error" data-for="quiet"></span>
+
+      <label for="tz">Time zone
+        <span class="hint">Quiet hours follow this zone, including daylight saving.</span></label>
+      <select id="tz"></select>
+      <span class="hint" id="tz-detected" hidden></span>
+      <div id="tz-custom-box" hidden>
+        <label for="tz-rule">Custom POSIX time-zone rule
+          <span class="hint">For example <code>NZST-12NZDT,M9.5.0,M4.1.0/3</code>.</span></label>
+        <input type="text" id="tz-rule" maxlength="63" spellcheck="false" autocapitalize="off">
+      </div>
+      <span class="field-error" data-for="tz.rule"></span>
+    </section>
+
+    <div class="actions">
+      <button type="submit" id="save">Save</button>
+      <button type="button" class="secondary" id="preview">Preview on this decoration</button>
+    </div>
+    <span class="field-error" data-for=""></span>
+    <p class="banner" id="profile-result" role="status" hidden></p>
+  </form>
+
+  <form id="device" novalidate>
+    <section aria-labelledby="device-title">
+      <h2 id="device-title">Device setup</h2>
+      <p class="hint">Done once by whoever set up this decoration. The password comes from the Yule server's Devices page.</p>
+      <label for="password">Broker password
+        <span class="hint" id="password-hint">Never shown again once saved. Leave empty to keep the current one.</span></label>
+      <input type="password" id="password" autocomplete="off" spellcheck="false" autocapitalize="off">
+      <span class="field-error" data-for="device.password"></span>
+      <div class="row">
+        <div><label for="host">Broker host <span class="hint">Empty: the built-in default.</span></label>
+          <input type="text" id="host" spellcheck="false" autocapitalize="off"></div>
+        <div><label for="port">Port <span class="hint">0 or empty: the default.</span></label>
+          <input type="number" id="port" min="0" max="65535" inputmode="numeric"></div>
+      </div>
+      <span class="field-error" data-for="device.host"></span>
+      <span class="field-error" data-for="device.port"></span>
+      <div class="actions"><button type="submit" id="save-device">Save device setup</button></div>
+      <p class="banner" id="device-result" role="status" hidden></p>
+    </section>
+  </form>
+</main>
+<script>
+(function () {
+  "use strict";
+  var library = null, settings = null, status = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var CUSTOM = "__custom__";
+
+  function api(path, body) {
+    var opts = body === undefined ? { cache: "no-store" } :
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    return fetch(path, opts).then(function (r) {
+      return r.json().catch(function () { throw new Error("The decoration sent an unexpected answer (" + r.status + ")."); });
+    });
+  }
+
+  function text(el, value) { el.textContent = value; }
+
+  function fmtSeconds(ms) { return (Math.round(ms / 100) / 10) + " s"; }
+
+  // ---- Status ----
+  function renderStatus(s) {
+    status = s;
+    $("load-error").hidden = true;
+    text($("st-id"), s.id);
+    var groups = $("st-groups");
+    groups.textContent = "";
+    if (!s.groups.length) {
+      groups.textContent = "Not in any family group yet";
+    } else {
+      s.groups.forEach(function (g) { var p = document.createElement("span"); p.className = "pill"; p.textContent = g; groups.appendChild(p); });
+    }
+    text($("st-wifi"), s.wifi.ssid ? s.wifi.ssid + " (" + s.wifi.ip + ", " + s.wifi.hostname + ")" : "not connected");
+    var broker = $("st-broker");
+    broker.textContent = s.broker.connected ? "Connected" : s.broker.state.charAt(0).toUpperCase() + s.broker.state.slice(1);
+    broker.className = s.broker.connected ? "good" : "bad";
+    text($("st-clock"), s.clock.synced ? s.clock.local : "Time not synchronised yet (quiet hours wait until it is)");
+    text($("st-sound"), s.muted ? "Muted" : (s.quietNow ? "Quiet hours now (lights only)" : "On"));
+    text($("st-fw"), s.fw + " (" + s.board + ", " + s.channel + " channel)");
+    text($("st-update"), describeUpdate(s.update));
+    $("setup-required").hidden = !s.setupRequired;
+    $("password-hint").textContent = s.setupRequired
+      ? "No password saved yet. Enter the one the server showed for " + s.id + "."
+      : "A password is saved. It is never shown; leave this empty to keep it.";
+    if (document.activeElement !== $("host") && document.activeElement !== $("port")) {
+      $("host").placeholder = s.broker.host; $("port").placeholder = String(s.broker.port);
+    }
+    $("subtitle").textContent = settings ? settings.name + "'s decoration" : "Your decoration";
+  }
+
+  function describeUpdate(u) {
+    switch (u.state) {
+      case "downloading": return "Downloading " + (u.version || "") + ": " + u.percent + "%";
+      case "verifying": return "Checking " + (u.version || "") + "…";
+      case "restarting": return "Installed " + (u.version || "") + "; restarting";
+      case "checking": return "Installed " + (u.version || "") + "; checking it works";
+      case "waiting": return "Update " + (u.version || "") + " will install when the decoration is idle";
+      case "installed": return "Up to date; the last update installed successfully";
+      case "failed": return "The last update failed: " + (u.detail || "unknown reason") + ". The decoration kept its firmware.";
+      case "rolled-back": return "Version " + (u.version || "?") + " did not work and was rolled back";
+      default: return "Up to date";
+    }
+  }
+
+  function refreshStatus() {
+    return api("/api/status").then(renderStatus).catch(function () { $("load-error").hidden = false; });
+  }
+
+  // ---- Settings form ----
+  function option(value, label) { var o = document.createElement("option"); o.value = value; o.textContent = label; return o; }
+
+  function fillLibrary(lib) {
+    library = lib;
+    var song = $("song");
+    lib.songs.forEach(function (s) { song.appendChild(option(s.id, s.title + " (" + fmtSeconds(s.ms) + ")")); });
+    song.appendChild(option(CUSTOM, "Custom tune…"));
+    var effect = $("effect");
+    lib.effects.forEach(function (e) { effect.appendChild(option(e.name, e.label)); });
+    var tz = $("tz");
+    lib.timeZones.forEach(function (z) { tz.appendChild(option(z.name, z.name.replace(/_/g, " "))); });
+    tz.appendChild(option("custom", "Custom rule…"));
+    $("song-max").textContent = lib.limits.songChars;
+    $("rtttl").maxLength = lib.limits.songChars;
+    $("name").maxLength = lib.limits.nameChars;
+  }
+
+  function effectInfo(name) {
+    for (var i = 0; i < library.effects.length; i++) if (library.effects[i].name === name) return library.effects[i];
+    return null;
+  }
+
+  function fillSettings(p) {
+    settings = p;
+    $("name").value = p.name;
+    if (p.song.kind === "custom") { $("song").value = CUSTOM; $("rtttl").value = p.song.rtttl || ""; }
+    else { $("song").value = p.song.id; }
+    $("effect").value = p.pattern.effect;
+    var colors = p.pattern.colors.length ? p.pattern.colors : ["#FF9329"];
+    $("color-count").value = String(colors.length);
+    for (var i = 0; i < 3; i++) $("color" + i).value = (colors[i] || colors[0]).toLowerCase();
+    document.querySelectorAll("input[name=speed]").forEach(function (r) { r.checked = Number(r.value) === p.pattern.speed; });
+    $("brightness").value = p.brightness;
+    $("muted").checked = p.muted;
+    $("quiet-enabled").checked = p.quiet.enabled;
+    $("quiet-start").value = p.quiet.start;
+    $("quiet-end").value = p.quiet.end;
+    var known = library.timeZones.some(function (z) { return z.name === p.tz.name; });
+    $("tz").value = known ? p.tz.name : "custom";
+    $("tz-rule").value = known ? "" : p.tz.rule;
+    suggestBrowserZone(p);
+    sync();
+  }
+
+  // A device that still has the default zone gets this browser's zone pre-selected (it is saved with Save).
+  function suggestBrowserZone(p) {
+    var note = $("tz-detected");
+    note.hidden = true;
+    if (p.tz.name !== "UTC") return;
+    var browser = "";
+    try { browser = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return; }
+    if (!browser || browser === "UTC") return;
+    if (library.timeZones.some(function (z) { return z.name === browser; })) {
+      $("tz").value = browser;
+      note.textContent = "Picked " + browser.replace(/_/g, " ") + " from this browser. Press Save to use it.";
+      note.hidden = false;
+    }
+  }
+
+  function sync() {
+    $("custom-box").hidden = $("song").value !== CUSTOM;
+    var count = Number($("color-count").value);
+    for (var i = 0; i < 3; i++) $("color" + i).hidden = i >= count;
+    var info = effectInfo($("effect").value);
+    $("effect-roles").textContent = info ? info.roles + "." : "";
+    $("brightness-value").textContent = $("brightness").value;
+    var quiet = $("quiet-enabled").checked;
+    $("quiet-start").disabled = !quiet; $("quiet-end").disabled = !quiet;
+    $("tz-custom-box").hidden = $("tz").value !== "custom";
+    var len = $("rtttl").value.length;
+    $("rtttl-count").textContent = len + " of " + (library ? library.limits.songChars : 512) + " characters";
+  }
+
+  function collect() {
+    var songValue = $("song").value;
+    var song = songValue === CUSTOM ? { kind: "custom", rtttl: $("rtttl").value.trim() } : { kind: "library", id: songValue };
+    var colors = [];
+    for (var i = 0; i < Number($("color-count").value); i++) colors.push($("color" + i).value.toUpperCase());
+    var speed = 2;
+    document.querySelectorAll("input[name=speed]").forEach(function (r) { if (r.checked) speed = Number(r.value); });
+    var tzName = $("tz").value;
+    var tz = tzName === "custom" ? { name: "custom", rule: $("tz-rule").value.trim() } : { name: tzName };
+    return {
+      name: $("name").value,
+      song: song,
+      pattern: { effect: $("effect").value, colors: colors, speed: speed },
+      brightness: Number($("brightness").value),
+      muted: $("muted").checked,
+      quiet: { enabled: $("quiet-enabled").checked, start: $("quiet-start").value || settings.quiet.start, end: $("quiet-end").value || settings.quiet.end },
+      tz: tz
+    };
+  }
+
+  function clearIssues(form) {
+    form.querySelectorAll(".field-error").forEach(function (e) { e.textContent = ""; });
+    form.querySelectorAll(".field-warning").forEach(function (e) { e.textContent = ""; e.hidden = true; });
+  }
+
+  // Shows the device's own messages next to the fields they are about.
+  function showIssues(form, result) {
+    clearIssues(form);
+    (result.errors || []).forEach(function (e) {
+      var el = form.querySelector('.field-error[data-for="' + e.field + '"]') || form.querySelector('.field-error[data-for=""]');
+      if (el) el.textContent = (el.textContent ? el.textContent + " " : "") + e.message;
+    });
+    (result.warnings || []).forEach(function (w) {
+      var el = form.querySelector('.field-warning[data-warn="' + w.field + '"]');
+      if (el) { el.textContent = w.message; el.hidden = false; }
+    });
+  }
+
+  function banner(el, kind, message) { el.className = "banner " + kind; el.textContent = message; el.hidden = false; }
+
+  function busy(button, on) { button.disabled = on; }
+
+  $("profile").addEventListener("input", sync);
+  $("profile").addEventListener("change", sync);
+
+  $("profile").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var body = collect();
+    busy($("save"), true);
+    api("/api/settings", body).then(function (r) {
+      showIssues($("profile"), r);
+      if (r.ok) {
+        banner($("profile-result"), "ok", "Saved. Your next press uses these settings.");
+        return api("/api/settings").then(fillSettings).then(refreshStatus);
+      }
+      banner($("profile-result"), "err", "Not saved. Fix the highlighted fields; nothing was changed.");
+    }).catch(function (e) { banner($("profile-result"), "err", e.message || "Could not reach the decoration."); })
+      .then(function () { busy($("save"), false); });
+  });
+
+  $("preview").addEventListener("click", function () {
+    var body = collect();
+    busy($("preview"), true);
+    api("/api/preview", body).then(function (r) {
+      showIssues($("profile"), r);
+      banner($("profile-result"), r.ok ? "ok" : "err", r.ok
+        ? "Playing on this decoration only (with sound, even if muted). Nothing was sent or saved."
+        : "Cannot preview: fix the highlighted fields.");
+    }).catch(function (e) { banner($("profile-result"), "err", e.message || "Could not reach the decoration."); })
+      .then(function () { busy($("preview"), false); });
+  });
+
+  $("device").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var portText = $("port").value.trim();
+    var body = { host: $("host").value.trim(), port: portText === "" ? 0 : Number(portText) };
+    if ($("password").value !== "") body.password = $("password").value;
+    busy($("save-device"), true);
+    api("/api/device", body).then(function (r) {
+      showIssues($("device"), r);
+      if (r.ok) {
+        $("password").value = "";
+        banner($("device-result"), "ok", "Saved. The decoration is reconnecting to the broker.");
+        setTimeout(refreshStatus, 1500);
+      } else {
+        banner($("device-result"), "err", "Not saved. Fix the highlighted fields.");
+      }
+    }).catch(function (e) { banner($("device-result"), "err", e.message || "Could not reach the decoration."); })
+      .then(function () { busy($("save-device"), false); });
+  });
+
+  Promise.all([api("/api/library"), api("/api/settings"), api("/api/status")]).then(function (all) {
+    fillLibrary(all[0]);
+    fillSettings(all[1]);
+    renderStatus(all[2]);
+    $("host").value = all[2].broker.overrideHost;
+    $("port").value = all[2].broker.overridePort ? String(all[2].broker.overridePort) : "";
+    setInterval(refreshStatus, 5000);
+  }).catch(function () { $("load-error").hidden = false; $("subtitle").textContent = "Not connected"; });
+})();
+</script>
+</body>
+</html>

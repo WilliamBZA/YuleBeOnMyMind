@@ -26,6 +26,8 @@
     <Compile Include="..\Yule.Server.Tests\ServerWorld.cs" Link="ServerWorld.cs" />
     <!-- So are the browser stand-in for the admin pages and its default password. -->
     <Compile Include="..\Yule.Server.Tests\AdminClient.cs" Link="AdminClient.cs" />
+    <!-- And the stand-in signed firmware releases. -->
+    <Compile Include="..\Yule.Server.Tests\TestFirmware.cs" Link="TestFirmware.cs" />
   </ItemGroup>
 
   <ItemGroup>

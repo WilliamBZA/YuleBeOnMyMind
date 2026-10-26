@@ -26,6 +26,9 @@ class TimeSync {
   // "Sat 2026-10-17 15:42:10 NZDT" for the serial log.
   std::string localTimeString() const;
 
+  // Minutes after local midnight in the owner's time zone (for quiet hours). Meaningful only when synced().
+  int localMinuteOfDay() const;
+
   const std::string& rule() const { return rule_; }
 
  private:

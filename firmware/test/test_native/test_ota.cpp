@@ -235,6 +235,33 @@ static void test_a_healthy_update_stops_counting_boots() {
   TEST_ASSERT_FALSE(s.isRolledBack("0.3.0"));
 }
 
+static void test_a_bootloader_revert_is_recorded_as_a_rollback() {
+  // 0.3.0 was installed but never got as far as counting a boot: the bootloader went back to 0.2.0.
+  OtaState s;
+  s.markInstalled("0.3.0");
+  TEST_ASSERT_TRUE(s.onBoot("0.2.0") == BootAction::Continue);
+  TEST_ASSERT_FALSE_MESSAGE(s.provisional, "the old firmware is not provisional");
+  TEST_ASSERT_EQUAL_UINT8(0, s.bootAttempts);
+  TEST_ASSERT_TRUE(s.isRolledBack("0.3.0"));
+  TEST_ASSERT_FALSE(s.isRolledBack("0.2.0"));
+  TEST_ASSERT_EQUAL_STRING("rolled-back:0.3.0", s.lastResult.toString().c_str());
+  TEST_ASSERT_TRUE(s.installedVersion.empty());
+}
+
+static void test_the_installed_version_is_counted_while_it_runs() {
+  OtaState s;
+  s.markInstalled("0.3.0");
+  for (int i = 0; i < 3; ++i) TEST_ASSERT_TRUE(s.onBoot("0.3.0") == BootAction::Continue);
+  TEST_ASSERT_TRUE(s.provisional);
+  TEST_ASSERT_EQUAL_UINT8(3, s.bootAttempts);
+  TEST_ASSERT_TRUE(s.onBoot("0.3.0") == BootAction::Revert);
+  TEST_ASSERT_TRUE(s.isRolledBack("0.3.0"));
+  s.markInstalled("0.3.1");
+  s.onBoot("0.3.1");
+  s.markHealthy();
+  TEST_ASSERT_TRUE(s.installedVersion.empty());
+}
+
 static void test_boots_of_a_normal_image_are_not_counted() {
   OtaState s;
   for (int i = 0; i < 20; ++i) TEST_ASSERT_TRUE(s.onBoot("0.1.0") == BootAction::Continue);
@@ -308,13 +335,14 @@ static void test_failures_are_recorded_without_touching_provisional_state() {
 
 static void test_ota_state_round_trips_through_json() {
   OtaState s;
-  s.markInstalled();
+  s.markInstalled("0.3.0");
   s.onBoot("0.3.0");
   s.rolledBack = {"0.1.0", "0.2.0"};
   s.lastResult = OtaResult::fromString("failed:no space");
   const OtaState back = OtaState::fromJson(s.toJson());
   TEST_ASSERT_TRUE(back.provisional);
   TEST_ASSERT_EQUAL_UINT8(1, back.bootAttempts);
+  TEST_ASSERT_EQUAL_STRING("0.3.0", back.installedVersion.c_str());
   TEST_ASSERT_EQUAL_UINT32(2, back.rolledBack.size());
   TEST_ASSERT_EQUAL_STRING("0.2.0", back.rolledBack[1].c_str());
   TEST_ASSERT_TRUE(back.lastResult == s.lastResult);
@@ -364,6 +392,8 @@ void run_ota_tests() {
   RUN_TEST(test_decision_names);
   RUN_TEST(test_a_crash_looping_update_reverts_after_three_boots);
   RUN_TEST(test_a_healthy_update_stops_counting_boots);
+  RUN_TEST(test_a_bootloader_revert_is_recorded_as_a_rollback);
+  RUN_TEST(test_the_installed_version_is_counted_while_it_runs);
   RUN_TEST(test_boots_of_a_normal_image_are_not_counted);
   RUN_TEST(test_health_when_wifi_and_broker_come_up_quickly);
   RUN_TEST(test_health_when_wifi_is_unavailable_never_reverts_on_the_broker);

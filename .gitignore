@@ -440,6 +440,11 @@ firmware/dist/
 *.pem
 *.key
 
+# ---- Yule Be On My Mind: server source ----
+# The Visual Studio rules above ignore every folder named "Releases" (build output); these hold source.
+!server/src/Yule.Server/Releases/
+!server/src/Yule.Server/Pages/Releases/
+
 # ---- Yule Be On My Mind: broker and server deployment ----
 broker/.env
 broker/server.env
